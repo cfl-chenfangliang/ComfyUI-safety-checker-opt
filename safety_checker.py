@@ -97,7 +97,7 @@ class ClipSafetyChecker(PreTrainedModel):
                 
                 # Replace the image with a black image of the same size, 
                 # 优化：替换为用户的图片
-                if alternative_image: 
+                if not alternative_image: 
                     image_size = images[idx].size()
                     width, height = image_size[1], image_size[0]
                     images[idx] = pil2tensor(transform(alternative_image[0].permute(2, 0, 1)).resize((width, height), resample=Image.Resampling(2)))
