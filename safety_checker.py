@@ -130,7 +130,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
         return batch_results
 
-    def forward(self, clip_input, images, sensitivity, alternative_image):
+    def forward(self, clip_input, images, sensitivity, alternative_image=None):
         try:
             with torch.no_grad():
                 # Perform forward pass of the vision model to get image embeddings
