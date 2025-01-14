@@ -130,7 +130,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
         return batch_results
 
-    def forward(self, clip_input, images, sensitivity, alternative_image=None):
+    def forward(self, clip_input, images, sensitivity, alternative_image):
         try:
             with torch.no_grad():
                 # Perform forward pass of the vision model to get image embeddings
@@ -215,7 +215,7 @@ class Safety_Checker:
             raise
 
     # Check images for NSFW content and process accordingly
-    def nsfw_checker(self, images, sensitivity, alternative_image):
+    def nsfw_checker(self, images, sensitivity, alternative_image=None):
         try:
             safety_checker_input = self.safety_feature_extractor(self.numpy_to_pil(images), return_tensors="pt")
             checked_image, nsfw = self.safety_checker(images=images, clip_input=safety_checker_input.pixel_values, sensitivity=sensitivity, alternative_image=alternative_image)
