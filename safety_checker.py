@@ -188,9 +188,10 @@ class Safety_Checker:
             "required": {
                 "images": ("IMAGE",),
                 "sensitivity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.10}),
-                "alternative_image": ("IMAGE",),
-
             },
+            "optional": {
+                "alternative_image": ("IMAGE",),
+            }
         }
 
     # Define return types and names for the safety checker node
