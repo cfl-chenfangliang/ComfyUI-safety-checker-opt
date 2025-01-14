@@ -15,7 +15,7 @@ RED = "\033[91m"
 RESET = "\033[0m"
 
 def pil2tensor(image):
-    return torch.from_numpy(numpy.array(image).astype(numpy.float32) / 255.0).unsqueeze(0)
+    return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
 
 # Custom logging formatter for adding colors to warnings and above
 class CustomFormatter(logging.Formatter):
