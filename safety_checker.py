@@ -6,12 +6,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import CLIPImageProcessor, CLIPConfig, CLIPVisionModel, PreTrainedModel
+import torchvision.transforms as T
 import comfy.utils
 from folder_paths import models_dir
 
 # Define ANSI escape codes for coloring logs
 RED = "\033[91m"
 RESET = "\033[0m"
+
+def pil2tensor(image):
+    return torch.from_numpy(numpy.array(image).astype(numpy.float32) / 255.0).unsqueeze(0)
 
 # Custom logging formatter for adding colors to warnings and above
 class CustomFormatter(logging.Formatter):
@@ -84,12 +88,21 @@ class ClipSafetyChecker(PreTrainedModel):
         return result_img
 
     @staticmethod
-    def replace_nsfw_images(images, nsfw_concepts):
+    def replace_nsfw_images(images, nsfw_concepts, alternative_image):
+        transform = T.ToPILImage()
+
         # Replace NSFW images in a batch with blank images
         for idx, is_nsfw in enumerate(nsfw_concepts):
             if is_nsfw:
-                # Replace the image with a black image of the same size
-                images[idx] = torch.zeros_like(images[idx]) if torch.is_tensor(images) or torch.is_tensor(images[0]) else np.zeros(images[idx].shape)
+                
+                # Replace the image with a black image of the same size, 
+                # 优化：替换为用户的图片
+                if alternative_image: 
+                    image_size = images[idx].size()
+                    width, height = image_size[1], image_size[0]
+                    images[idx] = pil2tensor(transform(alternative_image[0].permute(2, 0, 1)).resize((width, height), resample=Image.Resampling(2)))
+                else:
+                    images[idx] = torch.zeros_like(images[idx]) if torch.is_tensor(images) or torch.is_tensor(images[0]) else np.zeros(images[idx].shape)
         return images
 
     @staticmethod
@@ -117,7 +130,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
         return batch_results
 
-    def forward(self, clip_input, images, sensitivity):
+    def forward(self, clip_input, images, sensitivity, alternative_image):
         try:
             with torch.no_grad():
                 # Perform forward pass of the vision model to get image embeddings
@@ -138,7 +151,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
                 # Check for NSFW content and replace corresponding images
                 nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in results]
-                images = ClipSafetyChecker.replace_nsfw_images(images, nsfw_concepts)
+                images = ClipSafetyChecker.replace_nsfw_images(images, nsfw_concepts, alternative_image)
 
                 # Log a warning if any NSFW content is detected
                 if any(nsfw_concepts):
@@ -175,6 +188,8 @@ class Safety_Checker:
             "required": {
                 "images": ("IMAGE",),
                 "sensitivity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.10}),
+                "alternative_image": ("IMAGE",),
+
             },
         }
 
@@ -199,10 +214,10 @@ class Safety_Checker:
             raise
 
     # Check images for NSFW content and process accordingly
-    def nsfw_checker(self, images, sensitivity):
+    def nsfw_checker(self, images, sensitivity, alternative_image):
         try:
             safety_checker_input = self.safety_feature_extractor(self.numpy_to_pil(images), return_tensors="pt")
-            checked_image, nsfw = self.safety_checker(images=images, clip_input=safety_checker_input.pixel_values, sensitivity=sensitivity)
+            checked_image, nsfw = self.safety_checker(images=images, clip_input=safety_checker_input.pixel_values, sensitivity=sensitivity, alternative_image=alternative_image)
             return checked_image, nsfw
         except Exception as e:
             logger.error(f"Error in nsfw_checker: {e}")
@@ -221,7 +236,7 @@ class Safety_Checker:
 
 # Mapping for node class and display names
 NODE_CLASS_MAPPINGS = {
-    "Safety Checker": Safety_Checker,
+    "Safety Checker Opt": Safety_Checker,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
 }
