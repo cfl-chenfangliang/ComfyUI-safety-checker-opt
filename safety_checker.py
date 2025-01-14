@@ -88,12 +88,14 @@ class ClipSafetyChecker(PreTrainedModel):
         return result_img
 
     @staticmethod
-    def replace_nsfw_images(images, nsfw_concepts, alternative_image):
+    def replace_nsfw_images(images, nsfw_concepts, any_nsfw_raise_exp, alternative_image):
         transform = T.ToPILImage()
 
         # Replace NSFW images in a batch with blank images
         for idx, is_nsfw in enumerate(nsfw_concepts):
             if is_nsfw:
+                if any_nsfw_raise_exp:
+                    raise ValueError("nsfw exception")
                 
                 # Replace the image with a black image of the same size, 
                 # 优化：替换为用户的图片
@@ -130,7 +132,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
         return batch_results
 
-    def forward(self, clip_input, images, sensitivity, alternative_image):
+    def forward(self, clip_input, images, sensitivity, any_nsfw_raise_exp, alternative_image):
         try:
             with torch.no_grad():
                 # Perform forward pass of the vision model to get image embeddings
@@ -151,7 +153,7 @@ class ClipSafetyChecker(PreTrainedModel):
 
                 # Check for NSFW content and replace corresponding images
                 nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in results]
-                images = ClipSafetyChecker.replace_nsfw_images(images, nsfw_concepts, alternative_image)
+                images = ClipSafetyChecker.replace_nsfw_images(images, nsfw_concepts, any_nsfw_raise_exp, alternative_image)
 
                 # Log a warning if any NSFW content is detected
                 if any(nsfw_concepts):
@@ -188,6 +190,7 @@ class Safety_Checker:
             "required": {
                 "images": ("IMAGE",),
                 "sensitivity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.10}),
+                "any_nsfw_raise_exp": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "alternative_image": ("IMAGE",),
@@ -215,10 +218,10 @@ class Safety_Checker:
             raise
 
     # Check images for NSFW content and process accordingly
-    def nsfw_checker(self, images, sensitivity, alternative_image=None):
+    def nsfw_checker(self, images, sensitivity, any_nsfw_raise_exp, alternative_image=None):
         try:
             safety_checker_input = self.safety_feature_extractor(self.numpy_to_pil(images), return_tensors="pt")
-            checked_image, nsfw = self.safety_checker(images=images, clip_input=safety_checker_input.pixel_values, sensitivity=sensitivity, alternative_image=alternative_image)
+            checked_image, nsfw = self.safety_checker(images=images, clip_input=safety_checker_input.pixel_values, sensitivity=sensitivity, any_nsfw_raise_exp=any_nsfw_raise_exp, alternative_image=alternative_image)
             return checked_image, nsfw
         except Exception as e:
             logger.error(f"Error in nsfw_checker: {e}")
