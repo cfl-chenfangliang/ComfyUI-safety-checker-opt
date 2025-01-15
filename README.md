@@ -18,3 +18,5 @@ The sensitivity level of the NSFW detection can be modified. Standard Value is 0
 ### Example Node Setup
 ![image](https://github.com/42lux/ComfyUI-safety-checker/assets/7535793/6847b6e1-63f9-4533-8878-34d481f6bf54)
 
+### 增加命中nsfw后返回指定图片或者直接抛异常，默认不传图片则返回黑色图
+![image](https://github.com/user-attachments/assets/7d67fae1-0cf6-41cb-9397-d5fceb7e7a89)
